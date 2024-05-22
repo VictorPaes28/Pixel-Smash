@@ -1,208 +1,181 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h> // Incluindo a biblioteca time.h para utilizar a função srand()
 
 #include "screen.h"
 #include "keyboard.h"
 #include "timer.h"
 
-#define SCREEN_WIDTH 80
-#define SCREEN_HEIGHT 25
+#define SCREEN_WIDTH 60
+#define SCREEN_HEIGHT 30
 #define BAR_WIDTH 10
 #define BALL_SYMBOL 'o'
+#define TARGET_SYMBOL 'X'
 #define BORDER_SYMBOL '-'
-#define ALTURA 20
-#define LARGURA 50
 
-typedef struct {
-    int x, y;
-    int dirX, dirY;
-} Bola;
+int barX = SCREEN_WIDTH / 2 - BAR_WIDTH / 2, barY = SCREEN_HEIGHT / 2 + 5; // Posição inicial da barra
+int ballX = SCREEN_WIDTH / 2, ballY = SCREEN_HEIGHT / 2; // Posição inicial da bola
+int ballSpeedX = 1, ballSpeedY = -1; // Velocidade da bola
+int targetX = SCREEN_WIDTH / 2, targetY = 5; // Posição inicial do alvo
+int targetWidth = 5, targetHeight = 1; // Tamanho do alvo
 
-typedef struct {
-    int x;
-} Barra;
+// Função para gerar uma posição aleatória para o alvo
+void generateRandomTargetPosition() {
+    targetX = rand() % (SCREEN_WIDTH - targetWidth - 2) + 1;
+    targetY = rand() % (SCREEN_HEIGHT / 2 - targetHeight) + 1; // Garante que o alvo seja gerado dentro da tela
+}
 
-typedef struct Bloco {
-    int x, y;
-    struct Bloco* prox;
-} Bloco;
-
-typedef struct {
-    char** matriz;
-} Tela;
-
-Bola* bola;
-Barra* barra;
-Bloco* blocos;
-Tela* tela;
-
-void inicializar() {
-    bola = (Bola*)malloc(sizeof(Bola));
-    barra = (Barra*)malloc(sizeof(Barra));
-
-    // Inicializa a barra
-    barra->x = SCREEN_WIDTH / 2 - BAR_WIDTH / 2;
-
-    // Inicializa a bola na posição inicial da barra
-    bola->x = barra->x + BAR_WIDTH / 2;
-    bola->y = SCREEN_HEIGHT - 3; // Posição acima da barra
-    bola->dirX = 1;
-    bola->dirY = -1; // Movimento para cima
-
-    tela = (Tela*)malloc(sizeof(Tela));
-    tela->matriz = (char**)malloc(ALTURA * sizeof(char*));
-    for (int i = 0; i < ALTURA; i++) {
-        tela->matriz[i] = (char*)malloc(LARGURA * sizeof(char));
+void drawScreenBorder() {
+    // Desenha a borda superior
+    screenSetColor(CYAN, DARKGRAY);
+    for (int i = 0; i < SCREEN_WIDTH; i++) {
+        screenGotoxy(i, 0);
+        printf("%c", BORDER_SYMBOL);
     }
-
-    // Inicializa a lista encadeada de blocos
-    Bloco* atual = NULL;
-    for (int i = 0; i < LARGURA; i++) {
-        for (int j = 0; j < 3; j++) {
-            Bloco* novoBloco = (Bloco*)malloc(sizeof(Bloco));
-            novoBloco->x = i;
-            novoBloco->y = j + 1;
-            novoBloco->prox = NULL;
-            if (atual == NULL) {
-                blocos = novoBloco;
-            } else {
-                atual->prox = novoBloco;
-            }
-            atual = novoBloco;
-        }
+    // Desenha a borda inferior
+    for (int i = 0; i < SCREEN_WIDTH; i++) {
+        screenGotoxy(i, SCREEN_HEIGHT - 1);
+        printf("%c", BORDER_SYMBOL);
+    }
+    // Desenha a borda esquerda
+    for (int i = 1; i < SCREEN_HEIGHT - 1; i++) {
+        screenGotoxy(0, i);
+        printf("%c", BORDER_SYMBOL);
+    }
+    // Desenha a borda direita
+    for (int i = 1; i < SCREEN_HEIGHT - 1; i++) {
+        screenGotoxy(SCREEN_WIDTH - 2, i);
+        printf("%c", BORDER_SYMBOL);
     }
 }
 
-void desenhar() {
-    screenClear(); // Limpa a tela
-
-    // Preenche a tela com espaços em branco
-    for (int i = 0; i < ALTURA; i++) {
-        for (int j = 0; j < LARGURA; j++) {
-            if (i == 0 || i == ALTURA - 1 || j == 0 || j == LARGURA - 1) {
-                tela->matriz[i][j] = BORDER_SYMBOL; // Define bordas ao redor da tela
-            } else {
-                tela->matriz[i][j] = ' ';
-            }
-        }
+void drawBar() {
+    screenSetColor(CYAN, DARKGRAY);
+    int adjustedBarX = barX;
+    // Verifica se a posição final da barra ultrapassa a borda direita
+    if (barX + BAR_WIDTH >= SCREEN_WIDTH - 2) {
+        adjustedBarX = SCREEN_WIDTH - BAR_WIDTH - 2;
     }
-
-    // Desenha a bola
-    tela->matriz[bola->y][bola->x] = BALL_SYMBOL;
-
-    // Desenha a barra
-    for (int i = barra->x; i < barra->x + BAR_WIDTH; i++) {
-        tela->matriz[SCREEN_HEIGHT - 2][i] = BORDER_SYMBOL;
-    }
-
-    // Desenha os blocos
-    Bloco* atual = blocos;
-    while (atual != NULL) {
-        tela->matriz[atual->y][atual->x] = '@';
-        atual = atual->prox;
-    }
-
-    // Desenha a tela
-    for (int i = 0; i < ALTURA; i++) {
-        for (int j = 0; j < LARGURA; j++) {
-            screenGotoxy(j, i);
-            printf("%c", tela->matriz[i][j]);
-        }
+    for (int i = barY - 1; i < barY; i++) {
+        screenGotoxy(adjustedBarX, i);
+        for (int j = 0; j < BAR_WIDTH; j++)
+            printf("="); // Desenha a barra
     }
 }
 
-void atualizar() {
-    // Move a bola
-    bola->x += bola->dirX;
-    bola->y += bola->dirY;
+void drawBall() {
+    screenSetColor(YELLOW, DARKGRAY);
+    screenGotoxy(ballX, ballY);
+    printf("%c", BALL_SYMBOL); // Desenha a bola
+}
 
-    // Bate nas paredes
-    if (bola->x <= 0 || bola->x >= LARGURA - 1) {
-        bola->dirX = -bola->dirX;
+void drawTarget() {
+    screenSetColor(RED, DARKGRAY);
+    for (int i = targetY; i < targetY + targetHeight; i++) {
+        screenGotoxy(targetX, i);
+        for (int j = 0; j < targetWidth; j++)
+            printf("%c", TARGET_SYMBOL); // Desenha o alvo
     }
-    if (bola->y <= 0) {
-        bola->dirY = -bola->dirY;
+}
+
+void moveBar(char direction) {
+    if (direction == 'a' && barX > 1)
+        barX--;
+    else if (direction == 'd' && barX < SCREEN_WIDTH - BAR_WIDTH - 2)
+        barX++;
+}
+
+void moveBall() {
+    ballX += ballSpeedX;
+    ballY += ballSpeedY;
+
+    // Verifica colisão com a parede esquerda ou direita
+    if (ballX <= 1 || ballX >= SCREEN_WIDTH - 2 - 1) {
+        ballSpeedX = -ballSpeedX; // Reflete a bola na parede
     }
 
-    // Verifica se a bola caiu no chão (game over)
-    if (bola->y >= ALTURA - 1) {
-        screenGotoxy(30, 12);
-        printf("Game Over\n");
+    // Verifica colisão com o teto
+    if (ballY <= 1) {
+        ballSpeedY = -ballSpeedY;
+    }
+
+    // Verifica colisão com o chão
+    if (ballY >= SCREEN_HEIGHT - 2) {
+        screenSetColor(YELLOW, DARKGRAY);
+        screenGotoxy(25, 12);
+        printf("Game Over!");
         screenUpdate();
+        timerDestroy();
         exit(0);
     }
 
-    // Verifica colisão com a barra
-    if (bola->y == SCREEN_HEIGHT - 2 && bola->x >= barra->x && bola->x < barra->x + BAR_WIDTH) {
-        bola->dirY = -bola->dirY;
-    }
-
-    // Verifica colisão com os blocos
-    Bloco* atual = blocos;
-    Bloco* anterior = NULL;
-    while (atual != NULL) {
-        if (bola->x == atual->x && bola->y == atual->y) {
-            bola->dirY = -bola->dirY;
-            if (anterior == NULL) {
-                blocos = atual->prox;
-            } else {
-                anterior->prox = atual->prox;
-            }
-            free(atual);
-            break;
-        }
-        anterior = atual;
-        atual = atual->prox;
+    // Verifica colisão com o alvo
+    if (ballY == targetY + targetHeight - 1 && ballX >= targetX && ballX <= targetX + targetWidth) {
+        generateRandomTargetPosition(); // Gera nova posição para o alvo
+        targetWidth = 0; // Remove o alvo
     }
 }
 
-void entrada() {
-    // Verifica se alguma tecla foi pressionada
-    if (keyhit()) {
-        int ch = readch();
+void handleCollision() {
+    // Colisão com a barra
+    if (ballY == barY - 1 && ballX >= barX && ballX <= barX + BAR_WIDTH) {
+        // Determina onde a bola atingiu a barra
+        int collisionPoint = ballX - barX;
 
-        // Move a barra
-        if (ch == 'a' && barra->x > 0) {
-            barra->x--;
-        } else if (ch == 'd' && barra->x < SCREEN_WIDTH - BAR_WIDTH) {
-            barra->x++;
-        }
+        // Reflete a bola
+        if (collisionPoint < BAR_WIDTH / 2)
+            ballSpeedX = -1; // Reflete para a esquerda
+        else if (collisionPoint > BAR_WIDTH / 2)
+            ballSpeedX = 1; // Reflete para a direita
+        else
+            ballSpeedX = 0; // Bola atingiu o centro da barra, mantém a mesma direção horizontal
+        ballSpeedY = -ballSpeedY;
     }
 }
 
 int main() {
+    static int ch = 0;
+
     screenInit(1);
     keyboardInit();
-    timerInit(300);
+    timerInit(50);
+    srand(time(NULL)); // Inicializa a semente para gerar números aleatórios
 
-    inicializar();
-    while (1) {
-        entrada();
-        atualizar();
-                desenhar();
-                timerUpdateTimer(100); // Ajustando o valor para 100 ms
-            }
+    drawScreenBorder();
+    drawBar();
+    drawBall();
+    generateRandomTargetPosition(); // Gera a posição aleatória do primeiro alvo
+    drawTarget(); // Desenha o alvo inicial
+    screenUpdate();
 
-            screenDestroy();
-            keyboardDestroy();
-            timerDestroy();
-
-            // Liberação de memória
-            free(bola);
-            free(barra);
-            for (int i = 0; i < ALTURA; i++) {
-                free(tela->matriz[i]);
-            }
-            free(tela->matriz);
-            free(tela);
-
-            Bloco* atual = blocos;
-            while (atual != NULL) {
-                Bloco* temp = atual;
-                atual = atual->prox;
-                free(temp);
-            }
-
-            return 0;
+    while (ch != 10) // Enter
+    {
+        // Handle user input
+        if (keyhit()) 
+        {
+            ch = readch();
+            moveBar(ch);
         }
+
+        // Update game state (move elements, verify collision, etc)
+        if (timerTimeOver() == 1)
+        {
+            moveBall();
+            handleCollision();
+
+            screenClear(); // Limpa a tela antes de redesenhar
+            drawScreenBorder();
+            drawBar();
+            drawBall();
+            drawTarget(); // Redesenha o alvo
+            screenUpdate();
+        }
+    }
+
+    keyboardDestroy();
+    screenDestroy();
+    timerDestroy();
+
+    return 0;
+}
