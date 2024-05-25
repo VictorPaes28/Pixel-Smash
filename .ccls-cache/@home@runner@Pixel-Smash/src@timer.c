@@ -14,9 +14,6 @@
 #define TARGET_SYMBOL 'X'
 #define BORDER_SYMBOL '-'
 
-// Declaração da variável global para contar os alvos destruídos
-int targetCount = 0;
-
 int barX = SCREEN_WIDTH / 2 - BAR_WIDTH / 2, barY = SCREEN_HEIGHT / 2 + 5; // Posição inicial da barra
 int ballX = SCREEN_WIDTH / 2, ballY = SCREEN_HEIGHT / 2; // Posição inicial da bola
 int ballSpeedX = 1, ballSpeedY = -1; // Velocidade da bola
@@ -36,19 +33,20 @@ void drawScreenBorder() {
         screenGotoxy(i, 0);
         printf("%c", BORDER_SYMBOL);
     }
-
     // Desenha a borda inferior
     for (int i = 0; i < SCREEN_WIDTH; i++) {
         screenGotoxy(i, SCREEN_HEIGHT - 1);
         printf("%c", BORDER_SYMBOL);
     }
-
-    // Desenha a borda esquerda e direita
+    // Desenha a borda esquerda
     for (int i = 1; i < SCREEN_HEIGHT - 1; i++) {
         screenGotoxy(0, i);
-        printf("|");
-        screenGotoxy(SCREEN_WIDTH - 1, i);
-        printf("|");
+        printf("%c", BORDER_SYMBOL);
+    }
+    // Desenha a borda direita
+    for (int i = 1; i < SCREEN_HEIGHT - 1; i++) {
+        screenGotoxy(SCREEN_WIDTH - 2, i);
+        printf("%c", BORDER_SYMBOL);
     }
 }
 
@@ -114,8 +112,8 @@ void moveBall() {
 
     // Verifica colisão com o alvo
     if (ballY == targetY + targetHeight - 1 && ballX >= targetX && ballX <= targetX + targetWidth) {
-        targetCount++; // Incrementa o contador de alvos destruídos
         generateRandomTargetPosition(); // Gera nova posição para o alvo
+        targetWidth = 0; // Remove o alvo
     }
 }
 
@@ -129,61 +127,73 @@ void handleCollision() {
         if (collisionPoint < BAR_WIDTH / 2)
             ballSpeedX = -1; // Reflete para a esquerda
         else if (collisionPoint > BAR_WIDTH / 2)
-            ballSpeedX  = 1; // Reflete para a direita
-                        else
-                            ballSpeedX = 0; // Bola atingiu o centro da barra, mantém a mesma direção horizontal
-                        ballSpeedY = -ballSpeedY;
-                    }
-                }
+            ballSpeedX = 1; // Reflete para a direita
+        else
+            ballSpeedX = 0; // Bola atingiu o centro da barra, mantém a mesma direção horizontal
+        ballSpeedY = -ballSpeedY;
+    }
+}
 
-                int main() {
-                    screenInit(1);
-                    keyboardInit();
-                    timerInit(50);
-                    srand(time(NULL)); // Inicializa a semente para gerar números aleatórios
+void drawStartScreen() {
+    screenClear();
+    screenSetColor(WHITE, BLACK);
+    screenGotoxy(SCREEN_WIDTH / 2 - 10, SCREEN_HEIGHT / 2 - 2);
+    printf("Bem-vindo ao Jogo!");
+    screenGotoxy(SCREEN_WIDTH / 2 - 15, SCREEN_HEIGHT / 2);
+    printf("Pressione qualquer tecla para comecar");
+    screenUpdate();
 
-                    drawScreenBorder();
-                    drawBar();
-                    drawBall();
-                    generateRandomTargetPosition(); // Gera a posição aleatória do primeiro alvo
-                    drawTarget(); // Desenha o alvo inicial
+    // Espera pelo usuário pressionar uma tecla
+    while (!keyhit()) {
+        // Do nothing, just wait for a key press
+    }
+    readch(); // Consome a tecla pressionada
+}
 
-                    // Mostra o placar fora dos limites da tela
-                    screenGotoxy(0, SCREEN_HEIGHT);
-                    printf("Score: %d", targetCount);
+int main() {
+    static int ch = 0;
 
-                    screenUpdate();
+    screenInit(1);
+    keyboardInit();
+    timerInit(50);
+    srand(time(NULL)); // Inicializa a semente para gerar números aleatórios
 
-                    while (1) // Loop infinito
-                    {
-                        // Handle user input
-                        if (keyhit()) 
-                        {
-                            char ch = readch();
-                            moveBar(ch);
-                        }
+    drawStartScreen(); // Mostra a tela inicial
 
-                        // Update game state (move elements, verify collision, etc)
-                        if (timerTimeOver() == 1)
-                        {
-                            moveBall();
-                            handleCollision();
+    drawScreenBorder();
+    drawBar();
+    drawBall();
+    generateRandomTargetPosition(); // Gera a posição aleatória do primeiro alvo
+    drawTarget(); // Desenha o alvo inicial
+    screenUpdate();
 
-                            screenClear(); // Limpa a tela antes de redesenhar
-                            drawScreenBorder();
-                            drawBar();
-                            drawBall();
-                            drawTarget(); // Redesenha o alvo
-                            screenGotoxy(0, SCREEN_HEIGHT); // Move o cursor para a posição do placar
-                            printf("Score: %d", targetCount); // Atualiza o placar
-                            screenUpdate();
-                        }
-                    }
+    while (ch != 10) // Enter
+    {
+        // Handle user input
+        if (keyhit()) 
+        {
+            ch = readch();
+            moveBar(ch);
+        }
 
-                    keyboardDestroy();
-                    screenDestroy();
-                    timerDestroy();
+        // Update game state (move elements, verify collision, etc)
+        if (timerTimeOver() == 1)
+        {
+            moveBall();
+            handleCollision();
 
-                    return 0;
-                }
+            screenClear(); // Limpa a tela antes de redesenhar
+            drawScreenBorder();
+            drawBar();
+            drawBall();
+            drawTarget(); // Redesenha o alvo
+            screenUpdate();
+        }
+    }
 
+    keyboardDestroy();
+    screenDestroy();
+    timerDestroy();
+
+    return 0;
+}
