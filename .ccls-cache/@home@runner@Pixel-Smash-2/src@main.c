@@ -1,181 +1,269 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h> // Incluindo a biblioteca time.h para utilizar a função srand()
+#include <time.h>
 
 #include "screen.h"
 #include "keyboard.h"
 #include "timer.h"
 
-#define SCREEN_WIDTH 60
-#define SCREEN_HEIGHT 30
-#define BAR_WIDTH 10
+#define BORDER_WIDTH (MAXX - MINX + 1)
+#define BORDER_HEIGHT (MAXY - MINY + 1)
+#define BAR_WIDTH 15
 #define BALL_SYMBOL 'o'
 #define TARGET_SYMBOL 'X'
-#define BORDER_SYMBOL '-'
+#define SCORE_FILE "best_score.txt"
 
-int barX = SCREEN_WIDTH / 2 - BAR_WIDTH / 2, barY = SCREEN_HEIGHT / 2 + 5; // Posição inicial da barra
-int ballX = SCREEN_WIDTH / 2, ballY = SCREEN_HEIGHT / 2; // Posição inicial da bola
-int ballSpeedX = 1, ballSpeedY = -1; // Velocidade da bola
-int targetX = SCREEN_WIDTH / 2, targetY = 5; // Posição inicial do alvo
-int targetWidth = 5, targetHeight = 1; // Tamanho do alvo
+typedef struct TargetNode {
+int x, y;
+ struct TargetNode *next;
+} TargetNode;
 
-// Função para gerar uma posição aleatória para o alvo
+typedef struct {
+int x, y;
+int width;
+} Bar;
+
+typedef struct {
+int x, y;
+int speedX, speedY;
+} Ball;
+
+typedef struct {
+int x, y;
+int width, height;
+} Target;
+
+int targetCount = 0;
+int bestScore = 0;
+
+Bar *bar;
+Ball *ball;
+Target *target;
+TargetNode *destroyedTargetsHead = NULL;
+int ballMoving = 0;
+
+void addTargetToList(int x, int y) {
+    TargetNode *newNode = (TargetNode *)malloc(sizeof(TargetNode));
+    if (newNode == NULL) {
+        fprintf(stderr, "Erro ao alocar memória para o novo nó da lista encadeada.\n");
+        exit(EXIT_FAILURE);
+    }
+    newNode->x = x;
+    newNode->y = y;
+    newNode->next = destroyedTargetsHead;
+    destroyedTargetsHead = newNode;
+}
+
 void generateRandomTargetPosition() {
-    targetX = rand() % (SCREEN_WIDTH - targetWidth - 2) + 1;
-    targetY = rand() % (SCREEN_HEIGHT / 2 - targetHeight) + 1; // Garante que o alvo seja gerado dentro da tela
+    target->x = rand() % (BORDER_WIDTH - target->width - 4) + 2;
+    target->y = rand() % (BORDER_HEIGHT / 2 - target->height - 3) + 2;
+}
+
+void readBestScore() {
+    FILE *file = fopen(SCORE_FILE, "r");
+    if (file != NULL) {
+        fscanf(file, "%d", &bestScore);
+        fclose(file);
+    }
+}
+
+void writeBestScore() {
+    FILE *file = fopen(SCORE_FILE, "w");
+    if (file != NULL) {
+        fprintf(file, "%d", bestScore);
+        fclose(file);
+    }
 }
 
 void drawScreenBorder() {
-    // Desenha a borda superior
-    screenSetColor(CYAN, DARKGRAY);
-    for (int i = 0; i < SCREEN_WIDTH; i++) {
-        screenGotoxy(i, 0);
-        printf("%c", BORDER_SYMBOL);
-    }
-    // Desenha a borda inferior
-    for (int i = 0; i < SCREEN_WIDTH; i++) {
-        screenGotoxy(i, SCREEN_HEIGHT - 1);
-        printf("%c", BORDER_SYMBOL);
-    }
-    // Desenha a borda esquerda
-    for (int i = 1; i < SCREEN_HEIGHT - 1; i++) {
-        screenGotoxy(0, i);
-        printf("%c", BORDER_SYMBOL);
-    }
-    // Desenha a borda direita
-    for (int i = 1; i < SCREEN_HEIGHT - 1; i++) {
-        screenGotoxy(SCREEN_WIDTH - 2, i);
-        printf("%c", BORDER_SYMBOL);
-    }
+    screenSetColor(WHITE, BLACK);
+    screenDrawBorders();
 }
 
 void drawBar() {
-    screenSetColor(CYAN, DARKGRAY);
-    int adjustedBarX = barX;
-    // Verifica se a posição final da barra ultrapassa a borda direita
-    if (barX + BAR_WIDTH >= SCREEN_WIDTH - 2) {
-        adjustedBarX = SCREEN_WIDTH - BAR_WIDTH - 2;
+    screenSetColor(CYAN, BLACK);
+    int adjustedBarX = bar->x;
+    if (bar->x + bar->width >= BORDER_WIDTH - 2) {
+        adjustedBarX = BORDER_WIDTH - bar->width - 2;
     }
-    for (int i = barY - 1; i < barY; i++) {
+    for (int i = bar->y - 1; i < bar->y; i++) {
+        screenSetColor(WHITE, BLACK);
         screenGotoxy(adjustedBarX, i);
-        for (int j = 0; j < BAR_WIDTH; j++)
-            printf("="); // Desenha a barra
+        for (int j = 0; j < bar->width; j++)
+            printf("=");
     }
 }
 
 void drawBall() {
     screenSetColor(YELLOW, DARKGRAY);
-    screenGotoxy(ballX, ballY);
-    printf("%c", BALL_SYMBOL); // Desenha a bola
+    screenGotoxy(ball->x, ball->y);
+    printf("%c", BALL_SYMBOL);
 }
 
 void drawTarget() {
-    screenSetColor(RED, DARKGRAY);
-    for (int i = targetY; i < targetY + targetHeight; i++) {
-        screenGotoxy(targetX, i);
-        for (int j = 0; j < targetWidth; j++)
-            printf("%c", TARGET_SYMBOL); // Desenha o alvo
+    screenSetColor(RED, BLACK);
+    for (int i = target->y; i < target->y + target->height; i++) {
+        screenGotoxy(target->x, i);
+        for (int j = 0; j < target->width; j++)
+            printf("%c", TARGET_SYMBOL);
     }
 }
 
 void moveBar(char direction) {
-    if (direction == 'a' && barX > 1)
-        barX--;
-    else if (direction == 'd' && barX < SCREEN_WIDTH - BAR_WIDTH - 2)
-        barX++;
+    if (direction == 'a' && bar->x > 1)
+        bar->x--;
+    else if (direction == 'd' && bar->x < BORDER_WIDTH - bar->width - 2)
+        bar->x++;
 }
 
 void moveBall() {
-    ballX += ballSpeedX;
-    ballY += ballSpeedY;
+    if (ballMoving) {
+        ball->x += ball->speedX;
+        ball->y += ball->speedY;
 
-    // Verifica colisão com a parede esquerda ou direita
-    if (ballX <= 1 || ballX >= SCREEN_WIDTH - 2 - 1) {
-        ballSpeedX = -ballSpeedX; // Reflete a bola na parede
-    }
+        if (ball->x <= 1 || ball->x >= BORDER_WIDTH - 2 - 1) {
+            ball->speedX = -ball->speedX;
+        }
 
-    // Verifica colisão com o teto
-    if (ballY <= 1) {
-        ballSpeedY = -ballSpeedY;
-    }
+        if (ball->y <= 1) {
+            ball->speedY = -ball->speedY;
+        }
 
-    // Verifica colisão com o chão
-    if (ballY >= SCREEN_HEIGHT - 2) {
-        screenSetColor(YELLOW, DARKGRAY);
-        screenGotoxy(25, 12);
-        printf("Game Over!");
-        screenUpdate();
-        timerDestroy();
-        exit(0);
-    }
-
-    // Verifica colisão com o alvo
-    if (ballY == targetY + targetHeight - 1 && ballX >= targetX && ballX <= targetX + targetWidth) {
-        generateRandomTargetPosition(); // Gera nova posição para o alvo
-        targetWidth = 0; // Remove o alvo
+        if (ball->y >= target->y && ball->y < target->y + target->height &&
+            ball->x >= target->x && ball->x < target->x + target->width) {
+            targetCount++;
+            addTargetToList(target->x, target->y);
+            generateRandomTargetPosition();
+        }
     }
 }
 
 void handleCollision() {
-    // Colisão com a barra
-    if (ballY == barY - 1 && ballX >= barX && ballX <= barX + BAR_WIDTH) {
-        // Determina onde a bola atingiu a barra
-        int collisionPoint = ballX - barX;
-
-        // Reflete a bola
-        if (collisionPoint < BAR_WIDTH / 2)
-            ballSpeedX = -1; // Reflete para a esquerda
-        else if (collisionPoint > BAR_WIDTH / 2)
-            ballSpeedX = 1; // Reflete para a direita
+    if (ball->y == bar->y - 1 && ball->x >= bar->x && ball->x <= bar->x + bar->width) {
+        int collisionPoint = ball->x - bar->x;
+        if (collisionPoint < bar->width / 2)
+            ball->speedX = -1;
+        else if (collisionPoint > bar->width / 2)
+            ball->speedX = 1;
         else
-            ballSpeedX = 0; // Bola atingiu o centro da barra, mantém a mesma direção horizontal
-        ballSpeedY = -ballSpeedY;
+            ball->speedX = 0;
+        ball->speedY = -ball->speedY;
     }
 }
 
 int main() {
-    static int ch = 0;
-
     screenInit(1);
     keyboardInit();
-    timerInit(50);
-    srand(time(NULL)); // Inicializa a semente para gerar números aleatórios
+    timerInit(75);
+    srand(time(NULL));
+
+    readBestScore();
+
+    bar = (Bar *)malloc(sizeof(Bar));
+    ball = (Ball *)malloc(sizeof(Ball));
+    target = (Target *)malloc(sizeof(Target));
+
+    bar->x = BORDER_WIDTH / 2 - BAR_WIDTH / 2;
+    bar->y = BORDER_HEIGHT - 4;
+    bar->width = BAR_WIDTH;
+
+    ball->x = BORDER_WIDTH / 2;
+    ball->y = BORDER_HEIGHT / 2;
+    ball->speedX = 0;
+    ball->speedY = 1;
+
+    target->width = 6;
+    target->height = 4;
 
     drawScreenBorder();
     drawBar();
     drawBall();
-    generateRandomTargetPosition(); // Gera a posição aleatória do primeiro alvo
-    drawTarget(); // Desenha o alvo inicial
+    generateRandomTargetPosition();
+    drawTarget();
+
+    screenGotoxy(5, BORDER_HEIGHT - 1);
+    screenSetColor(WHITE, BLACK);
+    printf("Score: ");
+    screenSetColor(YELLOW, BLACK);
+    printf("%d", targetCount);
+    screenSetColor(WHITE, BLACK);
+    screenGotoxy(BORDER_WIDTH - 15, BORDER_HEIGHT - 1);
+    printf("Best Score: ");
+    screenSetColor(YELLOW, BLACK);
+    printf("%d", bestScore);
+
     screenUpdate();
 
-    while (ch != 10) // Enter
-    {
-        // Handle user input
-        if (keyhit()) 
-        {
-            ch = readch();
+    while (1) {
+        if (keyhit()) {
+            char ch = readch();
+            if (!ballMoving && (ch == 'a' || ch == 'd')) {
+                ballMoving = 1;
+            }
             moveBar(ch);
         }
 
-        // Update game state (move elements, verify collision, etc)
-        if (timerTimeOver() == 1)
-        {
+        if (timerTimeOver() == 1) {
             moveBall();
             handleCollision();
 
-            screenClear(); // Limpa a tela antes de redesenhar
+            screenClear();
             drawScreenBorder();
             drawBar();
             drawBall();
-            drawTarget(); // Redesenha o alvo
+            drawTarget();
+            TargetNode *current = destroyedTargetsHead;
+            while (current != NULL) {
+                drawTarget(current->x, current->y);
+                current = current->next;
+            }
+
+            screenGotoxy(5, BORDER_HEIGHT - 1);
+            screenSetColor(WHITE, BLACK);
+            printf("Score: ");
+            screenSetColor(WHITE, BLACK);
+            printf("%d", targetCount);
+            screenGotoxy(BORDER_WIDTH - 15, BORDER_HEIGHT - 1);
+            screenSetColor(WHITE, BLACK);
+            printf("Best Score: ");
+            screenSetColor(WHITE, BLACK);
+            printf("%d", bestScore);
+
             screenUpdate();
-        }
-    }
 
-    keyboardDestroy();
-    screenDestroy();
-    timerDestroy();
+            if (ball->y >= BORDER_HEIGHT - 2) {
+                screenSetColor(YELLOW, DARKGRAY);
+                screenGotoxy(BORDER_WIDTH / 2 - 4, BORDER_HEIGHT / 2);
+                printf("Game Over!");
 
-    return 0;
-}
+                if (targetCount > bestScore) {
+                    bestScore = targetCount;
+                    writeBestScore();
+                }
+
+                screenUpdate();
+                timerDestroy();
+                exit(0);
+            }
+            }
+            }
+
+            while (destroyedTargetsHead != NULL) {
+            TargetNode *temp = destroyedTargetsHead;
+            destroyedTargetsHead = destroyedTargetsHead->next;
+            free(temp);
+            }
+
+            free(bar);
+            free(ball);
+            free(target);
+
+            keyboardDestroy();
+            screenDestroy();
+            timerDestroy();
+
+            return 0;
+            }
+
+

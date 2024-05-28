@@ -14,28 +14,24 @@
 #define TARGET_SYMBOL 'X'
 #define SCORE_FILE "best_score.txt"
 
-// Struct para representar um nó da lista encadeada de alvos destruídos
 typedef struct TargetNode {
-    int x, y; // Posição do alvo
-    struct TargetNode *next; // Ponteiro para o próximo nó da lista
+int x, y;
+ struct TargetNode *next;
 } TargetNode;
 
-// Struct para representar a barra
 typedef struct {
-    int x, y; // Posição da barra
-    int width; // Largura da barra
+int x, y;
+int width;
 } Bar;
 
-// Struct para representar a bola
 typedef struct {
-    int x, y; // Posição da bola
-    int speedX, speedY; // Velocidade da bola
+int x, y;
+int speedX, speedY;
 } Ball;
 
-// Struct para representar os alvos
 typedef struct {
-    int x, y; // Posição do alvo
-    int width, height; // Tamanho do alvo
+int x, y;
+int width, height;
 } Target;
 
 int targetCount = 0;
@@ -44,15 +40,12 @@ int bestScore = 0;
 Bar *bar;
 Ball *ball;
 Target *target;
-
-// Cabeça da lista encadeada de alvos destruídos
 TargetNode *destroyedTargetsHead = NULL;
+int ballMoving = 0;
 
-// Função para adicionar um alvo destruído à lista encadeada
 void addTargetToList(int x, int y) {
     TargetNode *newNode = (TargetNode *)malloc(sizeof(TargetNode));
     if (newNode == NULL) {
-        // Tratamento de erro, se a alocação de memória falhar
         fprintf(stderr, "Erro ao alocar memória para o novo nó da lista encadeada.\n");
         exit(EXIT_FAILURE);
     }
@@ -62,13 +55,11 @@ void addTargetToList(int x, int y) {
     destroyedTargetsHead = newNode;
 }
 
-// Função para gerar uma posição aleatória para o alvo
 void generateRandomTargetPosition() {
-    target->x = rand() % (BORDER_WIDTH - target->width - 2) + 1;
-    target->y = rand() % (BORDER_HEIGHT / 2 - target->height) + 1;
+    target->x = rand() % (BORDER_WIDTH - target->width - 4) + 2;
+    target->y = rand() % (BORDER_HEIGHT / 2 - target->height - 3) + 2;
 }
 
-// Função para ler a melhor pontuação do arquivo
 void readBestScore() {
     FILE *file = fopen(SCORE_FILE, "r");
     if (file != NULL) {
@@ -77,7 +68,6 @@ void readBestScore() {
     }
 }
 
-// Função para gravar a melhor pontuação no arquivo
 void writeBestScore() {
     FILE *file = fopen(SCORE_FILE, "w");
     if (file != NULL) {
@@ -87,34 +77,36 @@ void writeBestScore() {
 }
 
 void drawScreenBorder() {
+    screenSetColor(WHITE, BLACK);
     screenDrawBorders();
 }
 
 void drawBar() {
-    screenSetColor(CYAN, DARKGRAY);
+    screenSetColor(CYAN, BLACK);
     int adjustedBarX = bar->x;
     if (bar->x + bar->width >= BORDER_WIDTH - 2) {
         adjustedBarX = BORDER_WIDTH - bar->width - 2;
     }
     for (int i = bar->y - 1; i < bar->y; i++) {
+        screenSetColor(WHITE, BLACK);
         screenGotoxy(adjustedBarX, i);
         for (int j = 0; j < bar->width; j++)
-            printf("="); // Desenha a barra
+            printf("=");
     }
 }
 
 void drawBall() {
     screenSetColor(YELLOW, DARKGRAY);
     screenGotoxy(ball->x, ball->y);
-    printf("%c", BALL_SYMBOL); // Desenha a bola
+    printf("%c", BALL_SYMBOL);
 }
 
 void drawTarget() {
-    screenSetColor(RED, DARKGRAY);
+    screenSetColor(RED, BLACK);
     for (int i = target->y; i < target->y + target->height; i++) {
         screenGotoxy(target->x, i);
         for (int j = 0; j < target->width; j++)
-            printf("%c", TARGET_SYMBOL); // Desenha o alvo
+            printf("%c", TARGET_SYMBOL);
     }
 }
 
@@ -126,21 +118,24 @@ void moveBar(char direction) {
 }
 
 void moveBall() {
-    ball->x += ball->speedX;
-    ball->y += ball->speedY;
+    if (ballMoving) {
+        ball->x += ball->speedX;
+        ball->y += ball->speedY;
 
-    if (ball->x <= 1 || ball->x >= BORDER_WIDTH - 2 - 1) {
-        ball->speedX = -ball->speedX;
-    }
+        if (ball->x <= 1 || ball->x >= BORDER_WIDTH - 2 - 1) {
+            ball->speedX = -ball->speedX;
+        }
 
-    if (ball->y <= 1) {
-        ball->speedY = -ball->speedY;
-    }
+        if (ball->y <= 1) {
+            ball->speedY = -ball->speedY;
+        }
 
-    if (ball->y == target->y + target->height - 1 && ball->x >= target->x && ball->x <= target->x + target->width) {
-        targetCount++;
-        addTargetToList(target->x, target->y); // Adiciona o alvo à lista encadeada
-        generateRandomTargetPosition();
+        if (ball->y >= target->y && ball->y < target->y + target->height &&
+            ball->x >= target->x && ball->x < target->x + target->width) {
+            targetCount++;
+            addTargetToList(target->x, target->y);
+            generateRandomTargetPosition();
+        }
     }
 }
 
@@ -150,7 +145,7 @@ void handleCollision() {
         if (collisionPoint < bar->width / 2)
             ball->speedX = -1;
         else if (collisionPoint > bar->width / 2)
-            ball->speedX  = 1;
+            ball->speedX = 1;
         else
             ball->speedX = 0;
         ball->speedY = -ball->speedY;
@@ -160,7 +155,7 @@ void handleCollision() {
 int main() {
     screenInit(1);
     keyboardInit();
-    timerInit(50);
+    timerInit(75);
     srand(time(NULL));
 
     readBestScore();
@@ -175,11 +170,11 @@ int main() {
 
     ball->x = BORDER_WIDTH / 2;
     ball->y = BORDER_HEIGHT / 2;
-    ball->speedX = 1;
-    ball->speedY = -1;
+    ball->speedX = 0;
+    ball->speedY = 1;
 
-    target->width = 4;
-    target->height = 2;
+    target->width = 6;
+    target->height = 4;
 
     drawScreenBorder();
     drawBar();
@@ -188,15 +183,24 @@ int main() {
     drawTarget();
 
     screenGotoxy(5, BORDER_HEIGHT - 1);
-    printf("Score: %d", targetCount);
+    screenSetColor(WHITE, BLACK);
+    printf("Score: ");
+    screenSetColor(YELLOW, BLACK);
+    printf("%d", targetCount);
+    screenSetColor(WHITE, BLACK);
     screenGotoxy(BORDER_WIDTH - 15, BORDER_HEIGHT - 1);
-    printf("Best Score: %d", bestScore);
+    printf("Best Score: ");
+    screenSetColor(YELLOW, BLACK);
+    printf("%d", bestScore);
 
     screenUpdate();
 
     while (1) {
         if (keyhit()) {
             char ch = readch();
+            if (!ballMoving && (ch == 'a' || ch == 'd')) {
+                ballMoving = 1;
+            }
             moveBar(ch);
         }
 
@@ -209,8 +213,6 @@ int main() {
             drawBar();
             drawBall();
             drawTarget();
-
-            // Atualiza a lista encadeada de alvos destruídos
             TargetNode *current = destroyedTargetsHead;
             while (current != NULL) {
                 drawTarget(current->x, current->y);
@@ -218,9 +220,15 @@ int main() {
             }
 
             screenGotoxy(5, BORDER_HEIGHT - 1);
-            printf("Score: %d", targetCount);
+            screenSetColor(WHITE, BLACK);
+            printf("Score: ");
+            screenSetColor(WHITE, BLACK);
+            printf("%d", targetCount);
             screenGotoxy(BORDER_WIDTH - 15, BORDER_HEIGHT - 1);
-            printf("Best Score: %d", bestScore);
+            screenSetColor(WHITE, BLACK);
+            printf("Best Score: ");
+            screenSetColor(WHITE, BLACK);
+            printf("%d", bestScore);
 
             screenUpdate();
 
@@ -238,23 +246,24 @@ int main() {
                 timerDestroy();
                 exit(0);
             }
-        }
-        }
+            }
+            }
 
-        // Libera a memória alocada para a lista encadeada
-        while (destroyedTargetsHead != NULL) {
-        TargetNode *temp = destroyedTargetsHead;
-        destroyedTargetsHead = destroyedTargetsHead->next;
-        free(temp);
-        }
+            while (destroyedTargetsHead != NULL) {
+            TargetNode *temp = destroyedTargetsHead;
+            destroyedTargetsHead = destroyedTargetsHead->next;
+            free(temp);
+            }
 
-        free(bar);
-        free(ball);
-        free(target);
+            free(bar);
+            free(ball);
+            free(target);
 
-        keyboardDestroy();
-        screenDestroy();
-        timerDestroy();
+            keyboardDestroy();
+            screenDestroy();
+            timerDestroy();
 
-        return 0;
-        }
+            return 0;
+            }
+
+
