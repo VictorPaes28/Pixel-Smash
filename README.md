@@ -19,7 +19,7 @@ Para executar o Pong2, siga estas etapas:
 
 1. Clone este repositório em sua máquina:
 
-git clone [[https://github.com/viniciusdandrade/ViraPag.git](https://github.com/VictorPaes28/Pixel-Smash.git)](https://github.com/VictorPaes28/Pixel-Smash.git)
+git clone https://github.com/VictorPaes28/Pixel-Smash.git
 
 Compile o programa:
 
