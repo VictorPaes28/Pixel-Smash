@@ -35,6 +35,8 @@ Essas instruções agora refletem o processo de clonagem do repositório, compil
 👤Equipe👤
 
 Davi Dimitri - ddbm@cesar.school 📩
+
 Felipe Bandeira - fbq@cesar.school 📩
+
 Victor Paes - vplpc@cesar.school 📩
 
