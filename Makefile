@@ -4,13 +4,13 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -I./include
+CFLAGS = -I./src  
 
 # Source files
 SRCS = $(wildcard src/*.c)
 
 # Output executable
-TARGET = main  # Alterado para gerar o executável main
+TARGET = main
 
 # Default rule
 all: $(TARGET)
