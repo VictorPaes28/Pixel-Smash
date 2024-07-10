@@ -43,17 +43,7 @@ Target *target;
 TargetNode *headDestroyedTargets = NULL;
 int ballInMotion = 0;
 
-void addTargetToList(int x, int y) {
-    TargetNode *newNode = (TargetNode *)malloc(sizeof(TargetNode));
-    if (newNode == NULL) {
-        fprintf(stderr, "Error allocating memory for the new node in the linked list.\n");
-        exit(EXIT_FAILURE);
-    }
-    newNode->x = x;
-    newNode->y = y;
-    newNode->next = headDestroyedTargets;
-    headDestroyedTargets = newNode;
-}
+void screenDrawBorders();
 
 void generateRandomTargetPosition() {
     target->x = rand() % (WIDTH_BORDER - target->width - 4) + 2;
@@ -133,7 +123,6 @@ void moveBall() {
         if (ball->y >= target->y && ball->y < target->y + target->height &&
             ball->x >= target->x && ball->x < target->x + target->width) {
             targetCount++;
-            addTargetToList(target->x, target->y);
             generateRandomTargetPosition();
         }
     }
